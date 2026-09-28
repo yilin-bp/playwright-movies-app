@@ -6,11 +6,17 @@ import path from 'path'; // Add this line to import the 'path' module
  * https://github.com/motdotla/dotenv
  */
 import dotenv from 'dotenv';
-import assert from 'assert';
 dotenv.config({ path: path.resolve(__dirname, '.env'), quiet: true });
 
-assert(process.env.MOVIES_USERNAME, 'MOVIES_USERNAME env var is not set');
-assert(process.env.MOVIES_PASSWORD, 'MOVIES_PASSWORD env var is not set');
+const hasMoviesAuth = Boolean(
+  process.env.MOVIES_USERNAME && process.env.MOVIES_PASSWORD
+);
+
+if (!hasMoviesAuth) {
+  console.warn(
+    '[playwright.config] MOVIES_USERNAME/MOVIES_PASSWORD not set; logged-in projects are disabled.'
+  );
+}
 
 export const STORAGE_STATE = path.join(__dirname, 'playwright/.auth/user.json');
 
@@ -54,21 +60,25 @@ export default defineConfig({
 
   /* Configure projects for major browsers */
   projects: [
-    {
-      name: 'setup',
-      testDir: 'tests/logged-in',
-      testMatch: '**/*.setup.ts',
-      use: { ...devices['Desktop Chrome'] },
-    },
-    {
-      name: 'logged-in chrome',
-      testDir: 'tests/logged-in',
-      dependencies: ['setup'],
-      use: {
-        storageState: STORAGE_STATE,
-        ...devices['Desktop Chrome'],
-      },
-    },
+    ...(hasMoviesAuth
+      ? [
+          {
+            name: 'setup',
+            testDir: 'tests/logged-in',
+            testMatch: '**/*.setup.ts',
+            use: { ...devices['Desktop Chrome'] },
+          },
+          {
+            name: 'logged-in chrome',
+            testDir: 'tests/logged-in',
+            dependencies: ['setup'],
+            use: {
+              storageState: STORAGE_STATE,
+              ...devices['Desktop Chrome'],
+            },
+          },
+        ]
+      : []),
     {
       name: 'chromium',
       testDir: 'tests/logged-out',
